@@ -1,0 +1,46 @@
+# --- Segurança (CRÍTICO) ---
+.env
+.env.local
+secrets.json
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- IDE (PyCharm / VS Code) ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Mac OS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# --- WallGen - Pastas Temporárias & Modelos ---
+# Não suba as fotos de teste nem as geradas
+temp_data/
+uploads/
+generated/
+output/
+
+# Não suba modelos de IA baixados manualmente (são gigantes)
+*.ckpt
+*.safetensors
+*.bin
+*.pth
+models/
+weights/
+
+# Logs e Relatórios
+*.log
