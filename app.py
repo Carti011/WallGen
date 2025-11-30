@@ -4,6 +4,7 @@ from PIL import Image
 import torch
 from dotenv import load_dotenv
 
+# Carrega variáveis do arquivo .env imediatamente
 load_dotenv()
 
 # --- Configuração da Página ---
@@ -61,14 +62,20 @@ with col_upload:
     uploaded_file = st.file_uploader("Imagem base", type=["jpg", "jpeg", "png"])
 
 with col_params:
-    st.info("2. Dimensões Reais")
-    c1, c2 = st.columns(2)
-    with c1:
-        width = st.number_input("Largura (m)", min_value=1.0, value=3.0, step=0.1)
-    with c2:
-        height = st.number_input("Altura (m)", min_value=1.0, value=2.6, step=0.1)
+    st.info("2. Dimensões do Espaço")
+    # Agora com 3 colunas para incluir a profundidade
+    c1, c2, c3 = st.columns(3)
 
-    st.caption(f"Área: {width * height:.2f} m²")
+    with c1:
+        width = st.number_input("Largura (m)", min_value=0.5, value=3.0, step=0.1)
+    with c2:
+        height = st.number_input("Altura (m)", min_value=0.5, value=2.6, step=0.1)
+    with c3:
+        depth = st.number_input("Profundidade (m)", min_value=0.1, value=1.5, step=0.1,
+                                help="Espaço livre à frente da parede")
+
+    # Exibe o volume aproximado útil
+    st.caption(f"Área Parede: {width * height:.2f} m² | Volume Disp.: {width * height * depth:.2f} m³")
 
 st.divider()
 
