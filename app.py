@@ -1,35 +1,31 @@
 import streamlit as st
 import os
 from PIL import Image
-import torch
-from dotenv import load_dotenv
 
-# Importa a função da pasta 'core'
+
+from core.config import setup_app_config
+from core.utils import get_device_status, save_uploaded_file
 from core.ai_logic import generate_blueprint
 
-load_dotenv()
+env_key = setup_app_config()
 
-# --- Configuração da Página ---
-st.set_page_config(page_title="WallGen MVP", page_icon="🧱", layout="wide")
-st.markdown("""<style>.block-container {padding-top: 1rem; padding-bottom: 0rem;}</style>""", unsafe_allow_html=True)
-
-# --- Sidebar: Configurações ---
+# Sidebar
 with st.sidebar:
     st.header("⚙️ Configurações")
 
-    # Gestão da API Key
-    env_key = os.getenv("OPENAI_API_KEY", "")
+    # Input de API Key
     api_key_input = st.text_input("OpenAI API Key", type="password", value=env_key)
     if api_key_input:
         os.environ["OPENAI_API_KEY"] = api_key_input
 
     st.divider()
 
-    # Monitor de Hardware (M4)
-    if torch.backends.mps.is_available():
-        st.success("Apple Silicon (MPS): ATIVO 🚀")
+    # Status do Hardware
+    device, msg, status_type = get_device_status()
+    if status_type == "success":
+        st.success(msg)
     else:
-        st.error("MPS INATIVO (CPU) ⚠️")
+        st.error(msg)
 
 # --- Interface Principal ---
 st.title("WallGen 🧱 <MVP>")
@@ -45,17 +41,11 @@ with col_params:
     st.info("2. Dimensões & Pedido")
     c1, c2, c3 = st.columns(3)
 
-    with c1:
-        # Largura: Padrão 3m, Mínimo 0.5m
-        w = st.number_input("Largura (m)", min_value=0.5, value=3.0, step=0.1, format="%.2f")
-    with c2:
-        # Altura: Padrão 2.6m
-        h = st.number_input("Altura (m)", min_value=0.5, value=2.6, step=0.1, format="%.2f")
-    with c3:
-        # Profundidade: Padrão 1.5m
-        d = st.number_input("Profundidade (m)", min_value=0.1, value=1.5, step=0.1, format="%.2f")
+    with c1: w = st.number_input("Largura (m)", min_value=0.5, value=3.0, step=0.1, format="%.2f")
+    with c2: h = st.number_input("Altura (m)", min_value=0.5, value=2.6, step=0.1, format="%.2f")
+    with c3: d = st.number_input("Profundidade (m)", min_value=0.1, value=1.5, step=0.1, format="%.2f")
 
-    prompt_text = st.text_area("O que você deseja criar?", placeholder="Ex: Escritório gamer minimalista...",
+    prompt_text = st.text_area("O que você deseja criar?", placeholder="Ex: Escritório gamer, luzes neon...",
                                height=100)
 
     # Botão de Ação
@@ -63,7 +53,7 @@ with col_params:
 
 st.divider()
 
-# --- Lógica de Execução ---
+# --- Orquestração do Fluxo ---
 if uploaded_file and generate_btn:
     if not os.environ.get("OPENAI_API_KEY"):
         st.error("❌ API Key não encontrada.")
@@ -72,15 +62,16 @@ if uploaded_file and generate_btn:
     else:
         col_prev, col_result = st.columns(2)
 
+        # Lado Esquerdo: Imagem Original
         with col_prev:
             st.subheader("Imagem Original")
             image = Image.open(uploaded_file)
             st.image(image, use_column_width=True)
 
-            # Salva temporariamente para uso futuro
-            os.makedirs("temp_data/uploads", exist_ok=True)
-            image.save(os.path.join("temp_data/uploads", "input.jpg"))
+            # salva
+            save_uploaded_file(uploaded_file)
 
+        # Resultado da IA
         with col_result:
             st.subheader("Processando Lógica...")
             status_box = st.empty()
@@ -88,7 +79,7 @@ if uploaded_file and generate_btn:
             try:
                 status_box.info("🧠 Consultando Arquiteto AI (GPT-4o-mini)...")
 
-                # Chamada ao Backend (Core)
+                # Chama Core Logic
                 technical_prompt = generate_blueprint(prompt_text, w, h, d, os.environ["OPENAI_API_KEY"])
 
                 status_box.success("✅ Prompt Gerado com Sucesso!")
@@ -100,6 +91,6 @@ if uploaded_file and generate_btn:
                 status_box.error(f"Erro Crítico: {e}")
 
 elif uploaded_file:
-    # Preview apenas visual
+    # Preview Simples
     image = Image.open(uploaded_file)
     st.image(image, caption="Preview", width=400)
