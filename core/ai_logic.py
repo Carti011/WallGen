@@ -15,7 +15,8 @@ def generate_blueprint(user_prompt, width, height, depth, api_key):
     # Prompt do Sistema: Define a persona do Arquiteto
     system_instruction = f"""
     You are an expert Interior Design AI Architect.
-    Your goal is to convert a user request into a HIGHLY DETAILED prompt for Stable Diffusion ControlNet.
+    The user will describe a room in Portuguese or English.
+    Your goal is to translate and convert the user request into a HIGHLY DETAILED technical prompt for Stable Diffusion ControlNet.
 
     CONSTRAINTS:
     - Wall Dimensions: Width {width}m, Height {height}m.
