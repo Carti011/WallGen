@@ -2,10 +2,11 @@ import streamlit as st
 import os
 from PIL import Image
 
-
+# Imports da Arquitetura
 from core.config import setup_app_config
 from core.utils import get_device_status, save_uploaded_file
 from core.ai_logic import generate_blueprint
+from core.image_gen import generate_image
 
 env_key = setup_app_config()
 
@@ -27,6 +28,8 @@ with st.sidebar:
     else:
         st.error(msg)
 
+    st.info("💡 Modo M4: Rodando em Alta Precisão (FP32) para evitar erros gráficos.")
+
 # --- Interface Principal ---
 st.title("WallGen 🧱 <MVP>")
 
@@ -34,11 +37,11 @@ col_upload, col_params = st.columns([1, 1])
 uploaded_file = None
 
 with col_upload:
-    st.info("1. Upload da Parede")
+    st.info(" Upload da Parede")
     uploaded_file = st.file_uploader("Imagem base", type=["jpg", "jpeg", "png"])
 
 with col_params:
-    st.info("2. Dimensões & Pedido")
+    st.info(" Dimensões & Pedido")
     c1, c2, c3 = st.columns(3)
 
     with c1: w = st.number_input("Largura (m)", min_value=0.5, value=3.0, step=0.1, format="%.2f")
@@ -48,49 +51,62 @@ with col_params:
     prompt_text = st.text_area("O que você deseja criar?", placeholder="Ex: Escritório gamer, luzes neon...",
                                height=100)
 
-    # Botão de Ação
-    generate_btn = st.button("🚀 Gerar Prompt Técnico", type="primary", use_container_width=True)
+    generate_prompt_btn = st.button("🚀 Gerar Prompt Técnico", type="primary", use_container_width=True)
 
 st.divider()
 
-# --- Orquestração do Fluxo ---
-if uploaded_file and generate_btn:
+# Variáveis de Sessão
+if "technical_prompt" not in st.session_state:
+    st.session_state.technical_prompt = None
+if "input_path" not in st.session_state:
+    st.session_state.input_path = None
+
+#  Gerar Texto (GPT)
+if uploaded_file and generate_prompt_btn:
     if not os.environ.get("OPENAI_API_KEY"):
         st.error("❌ API Key não encontrada.")
     elif not prompt_text:
-        st.warning("⚠️ Descreva o que você quer fazer na parede.")
+        st.warning("⚠️ Descreva o pedido.")
     else:
-        col_prev, col_result = st.columns(2)
+        save_path = save_uploaded_file(uploaded_file)
+        st.session_state.input_path = save_path
 
-        # Lado Esquerdo: Imagem Original
-        with col_prev:
-            st.subheader("Imagem Original")
-            image = Image.open(uploaded_file)
-            st.image(image, use_column_width=True)
+        try:
+            with st.spinner("🧠 Arquiteto pensando..."):
+                prompt = generate_blueprint(prompt_text, w, h, d, os.environ["OPENAI_API_KEY"])
+                st.session_state.technical_prompt = prompt
+                st.success("Prompt Criado!")
+        except Exception as e:
+            st.error(f"Erro GPT: {e}")
 
-            # salva
-            save_uploaded_file(uploaded_file)
+# Visualização e Geração (Stable Diffusion)
+if st.session_state.input_path:
+    col_l, col_r = st.columns(2)
 
-        # Resultado da IA
-        with col_result:
-            st.subheader("Processando Lógica...")
-            status_box = st.empty()
+    with col_l:
+        st.subheader("Original")
+        st.image(st.session_state.input_path, use_column_width=True)
 
-            try:
-                status_box.info("🧠 Consultando Arquiteto AI (GPT-4o-mini)...")
+    with col_r:
+        if st.session_state.technical_prompt:
+            st.subheader("Prompt Técnico")
+            st.info(st.session_state.technical_prompt)
 
-                # Chama Core Logic
-                technical_prompt = generate_blueprint(prompt_text, w, h, d, os.environ["OPENAI_API_KEY"])
+            if st.button("🎨 Renderizar Imagem (Local M4)", type="primary"):
+                try:
+                    with st.spinner("🎨 Pintando pixels (FP32)..."):
+                        generated_img, edge_map = generate_image(
+                            st.session_state.technical_prompt,
+                            st.session_state.input_path
+                        )
 
-                status_box.success("✅ Prompt Gerado com Sucesso!")
+                        st.subheader("Resultado")
+                        st.image(generated_img, caption="Render Final", use_column_width=True)
 
-                st.markdown("### Prompt Técnico (Input para SD):")
-                st.code(technical_prompt, language="text")
+                        with st.expander("Ver o que a IA 'enxergou' (Estrutura)"):
+                            st.image(edge_map, caption="ControlNet Canny Map", use_column_width=True)
 
-            except Exception as e:
-                status_box.error(f"Erro Crítico: {e}")
-
-elif uploaded_file:
-    # Preview Simples
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Preview", width=400)
+                except Exception as e:
+                    st.error(f"Erro na Geração: {e}")
+        else:
+            st.write("Gere o prompt técnico primeiro.")
