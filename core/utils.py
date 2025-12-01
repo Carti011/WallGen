@@ -1,7 +1,6 @@
 import torch
 import os
 
-
 def get_device_status():
     """Verifica disponibilidade do Apple Silicon (MPS)."""
     if torch.backends.mps.is_available():
