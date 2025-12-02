@@ -3,7 +3,7 @@ from openai import OpenAI
 
 def create_technical_prompt(user_request, width, height, depth, api_key):
     """
-    Transforma o pedido do usuário em um prompt técnico otimizado para ControlNet.
+    Transforma o pedido do usuário em um prompt técnico com PESOS (Weighting) para garantir que os objetos apareçam.
     """
     if not api_key:
         raise ValueError("API Key ausente.")
@@ -11,22 +11,28 @@ def create_technical_prompt(user_request, width, height, depth, api_key):
     client = OpenAI(api_key=api_key)
 
     system_role = """
-    You are a Senior Interior Design AI. 
-    Your task is to rewrite user descriptions into a prompt for Stable Diffusion ControlNet (Img2Img).
+    You are a Senior Interior Design AI specialized in Stable Diffusion Prompt Engineering.
+    Your goal is to write a prompt that forces the AI to INSERT specific furniture into an existing room.
 
-    CRITICAL INSTRUCTION:
-    The goal is 'Virtual Staging'. You must keep the existing structural elements (walls, floors, windows) implies by the user input unless told otherwise.
-    Focus the prompt on INSERTING the new furniture requested.
+    CRITICAL TECHNIQUE - PROMPT WEIGHTING:
+    You MUST identify the main object the user wants (e.g., "desk", "sofa", "computer") and apply a weight syntax like (object:1.4).
+    1.1 = subtle emphasis
+    1.3 = strong emphasis
+    1.5 = very strong emphasis (use this for the main requested object)
 
     Structure:
-    "[Style description], [New Furniture detailed], [Lighting & Atmosphere], [Maintain existing room structure]"
+    "(Main Object:1.5), (Secondary Object:1.2), [Style keywords], [Lighting & Atmosphere], [Room Context]"
+
+    Example:
+    User: "A gaming pc on a desk"
+    Output: "(high end gaming computer setup:1.5), (modern black desk:1.3), neon rgb lighting, cinematic shot, 8k, hyperrealistic, placed in a modern room"
     """
 
     user_content = f"""
-    Room Dimensions: {width}m x {height}m (Depth available: {depth}m).
+    Room Context: {width}m x {height}m.
     User Request: "{user_request}"
 
-    Output ONLY the English prompt.
+    Output ONLY the English prompt string.
     """
 
     try:
