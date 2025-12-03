@@ -1,76 +1,63 @@
-import os
 from openai import OpenAI
 
 
-def analyze_depth_constraints(depth_meters):
+def get_style_guidelines(style_name):
     """
-    Traduz medidas físicas (metros) em restrições visuais (adjetivos em inglês)
-    para que o Stable Diffusion entenda a limitação de espaço.
+    Banco de dados de conhecimento do Agente Decorador.
     """
-    try:
-        d = float(depth_meters)
-    except:
-        return "standard size furniture"
-
-    if d <= 0.4:
-        return "ultra-slim profile, wall-mounted, shallow depth, compact design, minimal projection from wall"
-    elif d <= 0.8:
-        return "standard depth, moderate size, functional fit"
-    elif d <= 1.5:
-        return "deep seating, spacious arrangement, large furniture piece"
-    else:
-        return "massive scale, room-filling furniture, extensive layout, luxury spacing"
+    styles = {
+        "Moderno": "sleek lines, neutral palette (white, beige, grey), glass and steel materials, minimalism, functional furniture",
+        "Industrial": "exposed brick, raw concrete walls, leather furniture, black metal accents, edison bulbs, loft style",
+        "Escandinavo": "hygge, light wood (oak, ash), white walls, cozy textiles, plenty of natural light, plants",
+        "Luxo": "marble floors, gold accents, velvet upholstery, chandelier, dark wood, high contrast, dramatic lighting"
+    }
+    return styles.get(style_name, styles["Moderno"])
 
 
 def create_technical_prompt(user_request, width, height, depth, api_key):
     """
-    Gera um prompt técnico com 'Constraint Injection' para respeitar a profundidade.
+    Gera um prompt técnico usando uma Persona de Agente Decorador.
     """
     if not api_key:
-        raise ValueError("API Key ausente.")
+        raise ValueError("Chave da API ausente.")
 
     client = OpenAI(api_key=api_key)
 
-    # Análise de Restrição Física
-    depth_keywords = analyze_depth_constraints(depth)
-
-    # System Role Especializado em Física Visual
     system_role = """
-    You are a Senior Interior Design AI specialized in Photorealistic Rendering.
-    Your task is to convert a user request into a Technical Prompt for Stable Diffusion ControlNet.
+    You are a World-Class Interior Designer AI (Agent ID).
+    Your goal is to curate a scene that is structurally physically possible and aesthetically cohesive.
 
-    CRITICAL PROTOCOL - SPATIAL AWARENESS:
-    You have received specific 'Depth Keywords' calculated from real measurements. 
-    You MUST incorporate these adjectives into the description of the main furniture to ensure it fits the room physically.
+    STEP 1: ANALYZE THE REQUEST
+    Identify the intended style (Modern, Industrial, etc).
 
-    PROMPT STRUCTURE:
-    "(Main Object:1.4), (Depth Adjectives:1.3), [Material & Texture], [Lighting], [Room Context], 8k, photorealistic, interior design photography"
+    STEP 2: CHECK PHYSICS
+    User Depth Limit: {depth} meters.
+    - If depth < 0.6m: USE 'wall-mounted', 'floating console', 'slim'.
+    - If depth > 1.0m: USE 'deep sofa', 'central island', 'lounge chair'.
 
-    EXAMPLES:
-    - If user wants a "desk" and depth is "shallow": "(modern desk:1.4), (ultra-slim profile against wall:1.3), compact depth..."
-    - If user wants a "sofa" and depth is "deep": "(luxury sofa:1.4), (deep seating lounge style:1.3), spacious..."
+    STEP 3: GENERATE PROMPT
+    Format: "(Masterpiece, best quality, 8k, interior photography:1.4), (Style Keywords), (Main Furniture with Physics Adjectives), (Lighting), (Texture details)"
     """
 
     user_content = f"""
-    CONTEXT DATA:
-    - Wall Dimensions: {width}m x {height}m
-    - Available Depth: {depth}m (Physical Limit)
-    - Calculated Depth Adjectives: "{depth_keywords}"
-
+    ROOM DIMENSIONS: {width}m width x {height}m height.
+    DEPTH CONSTRAINT: {depth} meters.
     USER REQUEST: "{user_request}"
 
-    OUTPUT:
-    Return ONLY the final English prompt string.
+    INSTRUCTION:
+    - Do not simply translate. IMPROVE the request with design terminology.
+    - If the user asks for something too big for the depth, replace it with a smaller alternative (e.g., Sofa -> Bench).
+    - Output ONLY the English prompt.
     """
 
     try:
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": system_role},
+                {"role": "system", "content": system_role.format(depth=depth)},
                 {"role": "user", "content": user_content}
             ],
-            temperature=0.5
+            temperature=0.6
         )
         return response.choices[0].message.content
     except Exception as e:
